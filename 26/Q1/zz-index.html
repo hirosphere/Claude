@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Q1</title>
+
+<style>
+
+* { margin: 0; padding: 0; box-sizing: border-box; line-height: 1; }
+
+html
+{
+	height: 100%; overflow: hidden;
+	border: 0px solid hsl( 203, 50%, 40% );
+	padding: 0px;
+	font-size: calc( 5px + clamp( 0px, 2vw, 10px ) );
+	font-family: sans-serif ;
+	color: hsl( 0, 0%, 16% );
+}
+
+body
+{
+	height: 100%; overflow: auto; border: 0px solid hsl( 23, 70%, 70% );
+	padding: 30px 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: stretch;
+	align-items: center;
+	gap: 1rem;
+}
+
+.content {  }
+
+h1
+{
+	margin-bottom: 1rem;
+	background: hsl( 225, 65%, 55% ); color:hsl( 180, 0%, 100% );
+	min-width: 12em; padding: 0.4ex 1ex 0.2ex; text-align: center;
+}
+
+.gh h1 { background: hsl( 170, 55%, 50% ); }
+
+a { color: hsl( 0, 0%, 20% ); text-decoration: none; }
+a:hover { color:hsl( 205, 70%, 50% ) }
+
+h1 a, h1 a:hover { color:hsl( 180, 0%, 100% ); }
+
+ul { list-style: none; }
+
+ul.path-list
+{
+	padding: 0em 0.5ex; line-height: 1.4;
+	display: flex; align-items: center; gap: 0.5ex;
+	margin-bottom: 3px;
+}
+.path-list li { display: inline; }
+.path-list .sep { font-size: 76%; color:hsl( 50, 15%, 65% ); }
+
+ul.item-list
+{
+	overflow: auto;
+}
+
+.item-list li
+{
+	border-bottom: 1px dotted hsl( 50, 5%, 60% );
+	padding-block: 1px ;
+	display: grid; grid-template-columns: 1fr auto;
+}
+.item-list a { padding: 1.0ex 1.2ex; text-align: center ; }
+
+.item-list a:hover { background-color: hsl( 0 , 0% , 0% , 6% ); color: hsl( 0, 0%, 10% ); }
+
+
+
+.monitor
+{
+	margin-top: 7rem;
+	background: hsl( 47, 5%, 96% );
+	font-family: 'Courier New', Courier, monospace;
+}
+
+tbody:nth-child( 2n ) { background: hsl( 50, 2%, 90% ); }
+td { border-bottom: 1px solid hsl( 47, 5%, 76% ); }
+td { padding: 0.1ex 1ex; line-height: 1.2em; }
+
+
+</style>
+
+</head>
+<body class="gh">
+	<div class="content">
+		<div class="path"><ul class="path-list"><a href="../../../zz-index.html">Root</a><span class="sep">&gt;</span><a href="../../zz-index.html">Claude</a><span class="sep">&gt;</span><a href="../zz-index.html">26</a></ul></div>
+		<h1><a href="./">Q1</a></h1>
+		<ul class="item-list"><li><a class="title-link" href="./Test.txt"><span class="title" >Test.txt</span></a></li></ul>
+	</div>
+	<div class="monitor" style="display: none;">
+		<table><tbody><tr><td>updated</td><td>2026/3/8 16:36:49</td></tr>
+<tr><td>uReqPath</td><td>/Claude/26/Q1/zz-index.html</td></tr>
+<tr><td>uEsc</td><td>zz-index.html</td></tr>
+<tr><td>uDir</td><td>/Claude/26/Q1</td></tr>
+<tr><td>uName</td><td>Q1</td></tr>
+<tr><td>fRoot</td><td>C:\W/Github</td></tr>
+<tr><td>fDir</td><td>C:\W\Github\/Claude/26/Q1</td></tr>
+<tr><td>fName</td><td>Q1</td></tr>
+<tr><td>dirExists</td><td>true</td></tr>
+<tr><td>htPathLabels</td><td>Root,Claude,26,Q1</td></tr>
+<tr><td>htName</td><td>Q1</td></tr></tbody></table>
+		
+		<table><tbody><tr><td></td><td>Test.txt</td></tr></tbody></table></div>	
+</body>
+</html>
