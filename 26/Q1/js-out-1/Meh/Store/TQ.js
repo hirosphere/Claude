@@ -1,0 +1,8 @@
+(s) => {
+    if (s.type == "dodo")
+        s.succeed.$ = true;
+    if (s.type == "todo")
+        s.completed.$ = true;
+};
+export {};
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiVFEuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi90cy1zcmMvTWVoL1N0b3JlL1RRLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQWNBLENBQUUsQ0FBd0IsRUFBRyxFQUFFO0lBRzlCLElBQUssQ0FBQyxDQUFDLElBQUksSUFBSSxNQUFNO1FBQUksQ0FBQyxDQUFDLE9BQU8sQ0FBQyxDQUFDLEdBQUcsSUFBSSxDQUFFO0lBQzdDLElBQUssQ0FBQyxDQUFDLElBQUksSUFBSSxNQUFNO1FBQUksQ0FBQyxDQUFDLFNBQVMsQ0FBQyxDQUFDLEdBQUcsSUFBSSxDQUFFO0FBRWhELENBQUMsQ0FBQSJ9

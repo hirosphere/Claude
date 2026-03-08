@@ -1,0 +1,139 @@
+;
+const log = console.log;
+export class Perm {
+    schema;
+    s;
+    constructor(schema) {
+        this.schema = schema;
+        const ents = Object.entries(schema.stores).map(([name, ctor]) => [name, new Store(this, name, ctor)]);
+        this.s = Object.fromEntries(ents);
+    }
+    async db() {
+        return this.#_db ??= await this.create_db();
+    }
+    #_db;
+    async create_db() {
+        const fn = (resolve) => {
+            try {
+                const open_req = indexedDB.open(this.schema.idb_name, this.schema.version * 1000 + 2);
+                open_req.onsuccess = ev => {
+                    // log ( "Perm create_db () open_req onsuccess" , this.schema ) ;
+                    resolve(open_req.result);
+                };
+                open_req.onupgradeneeded = ev => {
+                    log("Perm create_db () open_req onupgradeneeded", this.schema.idb_name);
+                    const db = open_req.result;
+                    make_stores(db, this.schema.stores);
+                };
+                open_req.onerror = ev => {
+                    log("Perm create_db () open_req onerror", ev);
+                    resolve(undefined);
+                };
+            }
+            catch (exc) {
+                log("Perm create_db () catch", exc);
+            }
+        };
+        return new Promise(fn);
+    }
+}
+const make_stores = (db, stores) => {
+    const oldlist = new Set(db.objectStoreNames);
+    const newlist = new Set(Object.keys(stores));
+    newlist.difference(oldlist).forEach(storename => db.createObjectStore(storename));
+    log("new", newlist.difference(oldlist));
+    log("old", oldlist.difference(newlist));
+};
+export class Store {
+    perm;
+    name;
+    ctor;
+    constructor(perm, name, ctor) {
+        this.perm = perm;
+        this.name = name;
+        this.ctor = ctor;
+    }
+    async set(val, id) {
+        const ok = async (resolve) => {
+            try {
+                const transaction = (await this.perm.db())?.transaction([this.name], "readwrite");
+                if (!transaction) {
+                    resolve(false);
+                    return;
+                }
+                const store = transaction.objectStore(this.name);
+                const request = store.put(val, id);
+                request.onsuccess = ev => resolve(true);
+                request.onerror = () => resolve(false);
+            }
+            catch (exc) {
+                resolve(false);
+            }
+        };
+        return new Promise(ok);
+    }
+    async get(id) {
+        const val = async (resolve) => {
+            try {
+                const transaction = (await this.perm.db())?.transaction([this.name], "readonly");
+                if (!transaction) {
+                    resolve(undefined);
+                    return;
+                }
+                const store = transaction.objectStore(this.name);
+                const request = store.get(id);
+                request.onsuccess = ev => resolve(request.result);
+                request.onerror = () => resolve(undefined);
+            }
+            catch (exc) {
+                resolve(undefined);
+            }
+        };
+        return new Promise(val);
+    }
+}
+export class Record {
+    id;
+    constructor(
+    //	protected store : Store < V > ,
+    id) {
+        this.id = id;
+    }
+}
+class tree {
+    root;
+    nodes = new Map;
+    next_node_id = 1;
+}
+class node {
+    id;
+    agg;
+    parts;
+    name;
+    cr;
+    mod;
+    constructor(i) {
+        this.id = i.id;
+        this.agg = i?.agg ?? 0;
+        this.parts = i?.parts;
+        this.name = i.name;
+        this.cr = i.cr ?? new Date().toISOString();
+        this.mod = i.mod ?? this.cr;
+    }
+}
+class main {
+    type;
+    constructor(i) {
+        this.type = i?.type ?? "";
+    }
+}
+class todo {
+    type = "todo";
+    title;
+    completed;
+    constructor(i) {
+        this.title = i?.title ?? "";
+        this.completed = i?.completed ?? false;
+    }
+}
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiUGVybS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uL3RzLXNyYy9NZWgvU3RvcmUvUGVybS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDMkMsQ0FBQztBQUU1QyxNQUFNLEdBQUcsR0FBRyxPQUFPLENBQUMsR0FBRyxDQUFFO0FBRXpCLE1BQU0sT0FBTyxJQUFJO0lBSVE7SUFGUixDQUFDLENBQWtCO0lBRW5DLFlBQXdCLE1BQTJCO1FBQTNCLFdBQU0sR0FBTixNQUFNLENBQXFCO1FBRWxELE1BQU0sSUFBSSxHQUFHLE1BQU0sQ0FBQyxPQUFPLENBQUcsTUFBTSxDQUFDLE1BQU0sQ0FBRSxDQUFFLEdBQUcsQ0FFakQsQ0FBRSxDQUFFLElBQUksRUFBRyxJQUFJLENBQUUsRUFBRyxFQUFFLENBQUMsQ0FBRSxJQUFJLEVBQUcsSUFBSSxLQUFLLENBQUcsSUFBSSxFQUFHLElBQUksRUFBRyxJQUFJLENBQUUsQ0FBRSxDQUNsRSxDQUFFO1FBRUgsSUFBSSxDQUFDLENBQUMsR0FBRyxNQUFNLENBQUMsV0FBVyxDQUFHLElBQUksQ0FBRSxDQUFFO0lBQ3ZDLENBQUM7SUFFTSxLQUFLLENBQUMsRUFBRTtRQUVkLE9BQVEsSUFBSSxDQUFDLElBQUksS0FBSyxNQUFNLElBQUksQ0FBQyxTQUFTLEVBQUcsQ0FBRTtJQUNoRCxDQUFDO0lBRUQsSUFBSSxDQUFrQjtJQUVaLEtBQUssQ0FBQyxTQUFTO1FBRXhCLE1BQU0sRUFBRSxHQUFHLENBQUUsT0FBaUQsRUFBVSxFQUFFO1lBRXpFLElBQ0EsQ0FBQztnQkFDQSxNQUFNLFFBQVEsR0FBRyxTQUFTLENBQUMsSUFBSSxDQUU5QixJQUFJLENBQUMsTUFBTSxDQUFDLFFBQVEsRUFDcEIsSUFBSSxDQUFDLE1BQU0sQ0FBQyxPQUFPLEdBQUcsSUFBSSxHQUFHLENBQUMsQ0FDOUIsQ0FBRTtnQkFFSCxRQUFRLENBQUMsU0FBUyxHQUFHLEVBQUUsQ0FBQyxFQUFFO29CQUV6QixpRUFBaUU7b0JBRWpF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
