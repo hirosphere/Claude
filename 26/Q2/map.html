@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>地図 — 2分割ビュー</title>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1a18;
+      --paper: #f4f0e8;
+      --accent: #c0392b;
+      --muted: #8a857a;
+      --border: #ccc8be;
+      --cross-color: #c0392b;
+      --cross-size: 28px;
+      --cross-weight: 2px;
+      --dot-r: 5px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Shippori Mincho', serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1.2rem;
+      padding: 1rem 2rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--paper);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    header .sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .accent-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-left: 0.3em;
+      vertical-align: middle;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.4; transform:scale(.7); }
+    }
+
+    /* ── controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--paper);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .controls input {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.48rem 0.8rem;
+      border: 1px solid var(--border);
+      background: white;
+      font-family: 'Shippori Mincho', serif;
+      font-size: 0.9rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .controls input:focus { border-color: var(--ink); }
+
+    .controls button {
+      padding: 0.48rem 1.2rem;
+      background: var(--ink);
+      color: var(--paper);
+      border: none;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .controls button:hover { background: var(--accent); }
+
+    .preset-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .preset-btns button {
+      padding: 0.4rem 0.8rem;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .preset-btns button:hover {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+    }
+
+    /* ── split maps ── */
+    .maps-row {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .map-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-pane + .map-pane {
+      border-left: 2px solid var(--border);
+    }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.35rem 0.9rem;
+      background: var(--paper);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .pane-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .zoom-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .zoom-ctrl label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .zoom-ctrl input[type=range] {
+      width: 90px;
+      accent-color: var(--ink);
+      cursor: pointer;
+    }
+
+    .zoom-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--ink);
+      min-width: 1.6em;
+      text-align: right;
+    }
+
+    /* ── map wrapper (地図 + 十字オーバーレイ) ── */
+    .map-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-div {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 十字＋中心丸 — pointer-events:none で地図操作を妨げない */
+    .crosshair {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    /* 縦線 */
+    .crosshair::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: calc(50% - var(--cross-size));
+      transform: translateX(-50%);
+      width: var(--cross-weight);
+      height: calc(var(--cross-size) * 2);
+      background: var(--cross-color);
+      opacity: 0.85;
+      /* 中心の丸の分だけ上下に隙間 */
+      clip-path: polygon(
+        0 0, 100% 0,
+        100% calc(50% - var(--dot-r) - 1px),
+        0   calc(50% - var(--dot-r) - 1px),
+        0   calc(50% + var(--dot-r) + 1px),
+        100% calc(50% + var(--dot-r) + 1px),
+        100% 100%, 0 100%
+      );
+    }
+
+    /* 横線 */
+    .crosshair::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: calc(50% - var(--cross-size));
+      transform: translateY(-50%);
+      height: var(--cross-weight);
+      width: calc(var(--cross-size) * 2);
+      background: var(--cross-color);
+      opacity: 0.85;
+      clip-path: polygon(
+        0 0, calc(50% - var(--dot-r) - 1px) 0,
+        calc(50% - var(--dot-r) - 1px) 100%,
+        calc(50% + var(--dot-r) + 1px) 100%,
+        calc(50% + var(--dot-r) + 1px) 0,
+        100% 0, 100% 100%, 0 100%
+      );
+    }
+
+    /* 中心の丸 */
+    .crosshair .dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: calc(var(--dot-r) * 2);
+      height: calc(var(--dot-r) * 2);
+      border-radius: 50%;
+      background: var(--cross-color);
+      opacity: 0.9;
+      box-shadow: 0 0 0 2px white, 0 0 0 3.5px var(--cross-color);
+    }
+
+    /* ── footer ── */
+    footer {
+      padding: 0.5rem 2rem;
+      border-top: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      display: flex;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>地図 <span class="accent-dot"></span></h1>
+    <span class="sub">Split View · Synced Location</span>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="場所を検索... 例: 渋谷駅" />
+    <button onclick="searchPlace()">検索</button>
+    <div class="preset-btns">
+      <button onclick="setPlace('渋谷駅, 東京')">渋谷</button>
+      <button onclick="setPlace('新宿駅, 東京')">新宿</button>
+      <button onclick="setPlace('浅草寺, 東京')">浅草</button>
+      <button onclick="setPlace('富士山')">富士山</button>
+      <button onclick="setPlace('大阪城')">大阪城</button>
+    </div>
+  </div>
+
+  <div class="maps-row">
+    <!-- 左ペイン -->
+    <div class="map-pane">
+      <div class="pane-header">
+        <span class="pane-title">View A</span>
+        <div class="zoom-ctrl">
+          <label>ZOOM</label>
+          <input type="range" id="zoomA" min="2" max="20" value="12" oninput="onZoomSlider('A')" />
+          <span class="zoom-val" id="zoomValA">12</span>
+        </div>
+      </div>
+      <div class="map-wrapper">
+        <div class="map-div" id="mapA"></div>
+        <div class="crosshair"><div class="dot"></div></div>
+      </div>
+    </div>
+
+    <!-- 右ペイン -->
+    <div class="map-pane">
+      <div class="pane-header">
+        <span class="pane-title">View B</span>
+        <div class="zoom-ctrl">
+          <label>ZOOM</label>
+          <input type="range" id="zoomB" min="2" max="20" value="16" oninput="onZoomSlider('B')" />
+          <span class="zoom-val" id="zoomValB">16</span>
+        </div>
+      </div>
+      <div class="map-wrapper">
+        <div class="map-div" id="mapB"></div>
+        <div class="crosshair"><div class="dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>© Google Maps</span>
+    <span id="footerPlace">現在地: 東京駅</span>
+  </footer>
+
+  <script>
+    const API_KEY = 'AIzaSyBhQjsoTBqzC7xqEpe84bjKW5vTgZnzwl8';
+
+    let mapA, mapB;
+    let syncing = false;
+    let geocoder;
+
+    const INIT_CENTER = { lat: 35.6812, lng: 139.7671 };
+    const INIT_ZOOM_A = 12;
+    const INIT_ZOOM_B = 16;
+
+    function initMaps() {
+      geocoder = new google.maps.Geocoder();
+
+      mapA = new google.maps.Map(document.getElementById('mapA'), {
+        center: INIT_CENTER,
+        zoom: INIT_ZOOM_A,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
+
+      mapB = new google.maps.Map(document.getElementById('mapB'), {
+        center: INIT_CENTER,
+        zoom: INIT_ZOOM_B,
+        mapTypeControl: true,
+        streetViewControl: false,
+        fullscreenControl: false,
+      });
+
+      mapA.addListener('center_changed', () => {
+        if (syncing) return;
+        syncing = true;
+        mapB.setCenter(mapA.getCenter());
+        syncing = false;
+      });
+
+      mapB.addListener('center_changed', () => {
+        if (syncing) return;
+        syncing = true;
+        mapA.setCenter(mapB.getCenter());
+        syncing = false;
+      });
+    }
+
+    function onZoomSlider(pane) {
+      const val = parseInt(document.getElementById('zoom' + pane).value);
+      document.getElementById('zoomVal' + pane).textContent = val;
+      if (pane === 'A') mapA && mapA.setZoom(val);
+      else              mapB && mapB.setZoom(val);
+    }
+
+    function moveTo(query) {
+      geocoder.geocode({ address: query, language: 'ja' }, (results, status) => {
+        if (status === 'OK') {
+          const loc = results[0].geometry.location;
+          mapA.setCenter(loc);
+          mapB.setCenter(loc);
+          document.getElementById('footerPlace').textContent =
+            '現在地: ' + results[0].formatted_address;
+        } else {
+          alert('場所が見つかりませんでした: ' + query);
+        }
+      });
+    }
+
+    function searchPlace() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (q) moveTo(q);
+    }
+
+    function setPlace(place) {
+      document.getElementById('searchInput').value = place;
+      moveTo(place);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('searchInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') searchPlace();
+      });
+    });
+  </script>
+
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBhQjsoTBqzC7xqEpe84bjKW5vTgZnzwl8&callback=initMaps&language=ja"
+    async defer>
+  </script>
+
+</body>
+</html>
