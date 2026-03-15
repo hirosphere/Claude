@@ -1,0 +1,154 @@
+/**
+ * Live.ts テストコード
+ *
+ * テスト対象：
+ *   - Live.Entity の基本動作（初期値・値の取得/設定）
+ *   - lf_sub による Ref 登録と即時通知（vchan）
+ *   - lf_unsub による Ref 解除（unsub コールバック）
+ *   - lf_term による全 Ref への終了通知
+ *   - 同値再セット時の無通知（最適化）
+ *   - 複数 Ref への同時通知
+ *   - Live.get / Live.set ヘルパー
+ *   - Agg 連携（agg_echan の呼び出し）
+ *
+ * 実行方法：
+ *   npx tsx q1/Live.test.ts
+ */
+import { Live } from "../Meh/Model/Live.js";
+import { lf_sub, lf_unsub, lf_term, lf_agg, lv_get, lv_set, agg_echan } from "../Meh/Model/symbols.js";
+// ─── ユーティリティ ────────────────────────────────────────────────────────────
+let passed = 0;
+let failed = 0;
+function assert(label, cond) {
+    if (cond) {
+        console.log(`  ✅ PASS : ${label}`);
+        passed++;
+    }
+    else {
+        console.error(`  ❌ FAIL : ${label}`);
+        failed++;
+    }
+}
+function section(title) {
+    console.log(`\n── ${title} ──`);
+}
+/** テスト用のシンプルな Live.Ref 実装 */
+function makeRef() {
+    return {
+        values: [],
+        unsubCalled: false,
+        vchan(v) { this.values.push(v); },
+        unsub() { this.unsubCalled = true; },
+    };
+}
+/** テスト用の Agg 実装 */
+function makeAgg() {
+    return {
+        count: 0,
+        [agg_echan]() { this.count++; },
+    };
+}
+// ─── テスト開始 ───────────────────────────────────────────────────────────────
+console.log("=== Live.ts テスト ===");
+// ─── 1. Entity 初期値 ─────────────────────────────────────────────────────────
+section("1. Live.Entity 初期値");
+const e1 = new Live.Entity(42);
+assert("lv_get() で初期値を取得できる", e1[lv_get]() === 42);
+assert("Live.get() でも初期値を取得できる", Live.get(e1) === 42);
+const e2 = new Live.Entity("hello");
+assert("文字列型の初期値を取得できる", Live.get(e2) === "hello");
+const e3 = new Live.Entity(null);
+assert("null を初期値にできる", Live.get(e3) === null);
+// ─── 2. lf_sub : 登録直後に現在値が vchan される ──────────────────────────────
+section("2. lf_sub : 登録直後の即時通知");
+const e4 = new Live.Entity(10);
+const ref1 = makeRef();
+e4[lf_sub](ref1);
+assert("sub 直後に vchan が 1 回呼ばれる", ref1.values.length === 1);
+assert("sub 直後の vchan 値が現在値と一致する", ref1.values[0] === 10);
+assert("sub 直後は unsub が呼ばれていない", !ref1.unsubCalled);
+// ─── 3. lv_set : 値変更と通知 ────────────────────────────────────────────────
+section("3. lv_set : 値変更と Ref への通知");
+e4[lv_set](20);
+assert("set 後に vchan が追加で呼ばれる", ref1.values.length === 2);
+assert("set 後の vchan 値が新しい値と一致する", ref1.values[1] === 20);
+assert("lv_get() が新しい値を返す", e4[lv_get]() === 20);
+assert("Live.get() も新しい値を返す", Live.get(e4) === 20);
+// ─── 4. 同値再セット時は通知しない ───────────────────────────────────────────
+section("4. 同値再セットは通知しない（Entity の最適化）");
+const before = ref1.values.length;
+e4[lv_set](20); // 同じ値
+assert("同値の set では vchan が増えない", ref1.values.length === before);
+// ─── 5. Live.set ヘルパー ────────────────────────────────────────────────────
+section("5. Live.set ヘルパー");
+Live.set(e4, 99);
+assert("Live.set() で値が変更される", Live.get(e4) === 99);
+assert("Live.set() 後に vchan が呼ばれる", ref1.values[ref1.values.length - 1] === 99);
+// ─── 6. 複数 Ref への同時通知 ────────────────────────────────────────────────
+section("6. 複数 Ref への同時通知");
+const e5 = new Live.Entity("a");
+const refA = makeRef();
+const refB = makeRef();
+e5[lf_sub](refA);
+e5[lf_sub](refB);
+e5[lv_set]("b");
+assert("refA に値変更が通知される", refA.values.includes("b"));
+assert("refB に値変更が通知される", refB.values.includes("b"));
+// ─── 7. lf_unsub : Ref の解除 ────────────────────────────────────────────────
+section("7. lf_unsub : Ref の解除");
+e5[lf_unsub](refA);
+assert("unsub で ref.unsub() が呼ばれる", refA.unsubCalled);
+const lenBeforeSet = refA.values.length;
+e5[lv_set]("c");
+assert("unsub 後は解除された ref に通知されない", refA.values.length === lenBeforeSet);
+assert("unsub されていない refB には通知が届く", refB.values.includes("c"));
+// ─── 8. lf_term : 全 Ref への終了通知 ────────────────────────────────────────
+section("8. lf_term : 全 Ref への終了通知");
+const e6 = new Live.Entity(0);
+const refC = makeRef();
+const refD = makeRef();
+e6[lf_sub](refC);
+e6[lf_sub](refD);
+e6[lf_term]();
+assert("term で refC.unsub() が呼ばれる", refC.unsubCalled);
+assert("term で refD.unsub() が呼ばれる", refD.unsubCalled);
+// term 後は refs が空なので set しても何も起きない
+let threwAfterTerm = false;
+try {
+    e6[lv_set](999);
+}
+catch {
+    threwAfterTerm = true;
+}
+assert("term 後に lv_set しても例外が出ない", !threwAfterTerm);
+// ─── 9. Agg 連携 ─────────────────────────────────────────────────────────────
+section("9. Agg 連携（agg_echan の呼び出し）");
+const e7 = new Live.Entity(1);
+const agg = makeAgg();
+// lf_agg をセットする
+e7[lf_agg] = agg;
+e7[lv_set](2, agg);
+assert("set 時に agg_echan が 1 回呼ばれる", agg.count === 1);
+e7[lv_set](3, agg);
+assert("set のたびに agg_echan が呼ばれる", agg.count === 2);
+// agg が一致しない場合は agg_echan が呼ばれない
+const otherAgg = makeAgg();
+e7[lv_set](4, otherAgg);
+assert("異なる agg インスタンスでは agg_echan が呼ばれない", agg.count === 2);
+// ─── 10. unsub 未定義 Ref ─────────────────────────────────────────────────────
+section("10. unsub 未定義の Ref");
+const e8 = new Live.Entity(false);
+const refNoUnsub = { vchan() { } }; // unsub なし
+e8[lf_sub](refNoUnsub);
+let threwNoUnsub = false;
+try {
+    e8[lf_term]();
+}
+catch {
+    threwNoUnsub = true;
+}
+assert("unsub 未定義の Ref を term しても例外が出ない", !threwNoUnsub);
+// ─── 結果サマリー ────────────────────────────────────────────────────────────
+console.log(`\n=== 結果 : ${passed} passed / ${failed} failed ===\n`);
+// if ( failed > 0 ) process.exit ( 1 ) ;
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiTGl2ZS50ZXN0LmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vLi4vdHMtc3JjL3ExL0xpdmUudGVzdC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTs7Ozs7Ozs7Ozs7Ozs7O0dBZUc7QUFHSCxPQUFPLEVBQUUsSUFBSSxFQUFFLE1BQWtCLHNCQUFzQixDQUFFO0FBQ3pELE9BQU8sRUFBRSxNQUFNLEVBQUcsUUFBUSxFQUFHLE9BQU8sRUFBRyxNQUFNLEVBQUcsTUFBTSxFQUFHLE1BQU0sRUFBRyxTQUFTLEVBQUUsTUFBTSx5QkFBeUIsQ0FBRTtBQUU5RywyRUFBMkU7QUFFM0UsSUFBSSxNQUFNLEdBQUcsQ0FBQyxDQUFFO0FBQ2hCLElBQUksTUFBTSxHQUFHLENBQUMsQ0FBRTtBQUVoQixTQUFTLE1BQU0sQ0FBRyxLQUFjLEVBQUcsSUFBYztJQUVoRCxJQUFLLElBQUksRUFDVCxDQUFDO1FBQ0EsT0FBTyxDQUFDLEdBQUcsQ0FBRyxjQUFlLEtBQU0sRUFBRSxDQUFFLENBQUU7UUFDekMsTUFBTSxFQUFHLENBQUU7SUFDWixDQUFDO1NBRUQsQ0FBQztRQUNBLE9BQU8sQ0FBQyxLQUFLLENBQUcsY0FBZSxLQUFNLEVBQUUsQ0FBRSxDQUFFO1FBQzNDLE1BQU0sRUFBRyxDQUFFO0lBQ1osQ0FBQztBQUNGLENBQUM7QUFFRCxTQUFTLE9BQU8sQ0FBRyxLQUFjO0lBRWhDLE9BQU8sQ0FBQyxHQUFHLENBQUcsUUFBUyxLQUFNLEtBQUssQ0FBRSxDQUFFO0FBQ3ZDLENBQUM7QUFFRCw2QkFBNkI7QUFDN0IsU0FBUyxPQUFPO0lBRWYsT0FBTztRQUNOLE1BQU0sRUFBUSxFQUFFO1FBQ2hCLFdBQVcsRUFBRyxLQUFLO1FBQ25CLEtBQUssQ0FBRyxDQUFLLElBQUssSUFBSSxDQUFDLE1BQU0sQ0FBQyxJQUFJLENBQUcsQ0FBQyxDQUFFLENBQUUsQ0FBQyxDQUFDO1FBQzVDLEtBQUssS0FBWSxJQUFJLENBQUMsV0FBVyxHQUFHLElBQUksQ0FBRSxD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
