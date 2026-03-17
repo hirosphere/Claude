@@ -30,7 +30,7 @@ export const monitor =
 
 export interface Agg
 {
-	[ agg_echan ] () : void ;
+	[ agg_echan ] ? () : void ;
 }
 
 
@@ -42,9 +42,22 @@ export interface Agg
 
 export class Life < R extends Life.Ref >
 {
-	[ lf_ru ] : string = ru.next () ;
-	[ lf_refs ] = new Set < R > ;
-	[ lf_agg ] ? : Agg ;
+	/** アクセサー */
+
+	/** メンバー */
+
+	[ lf_ru ] : string = ru.next () ;   /** ランタイムユニーク値を保持 */
+	[ lf_refs ] = new Set < R > ;       /** 変更通知の対象リストを保持 */
+	[ lf_agg ] ? : Agg ;                /** ツリー構造上の組成者を保持 */
+
+
+	/** コンストラクタ */
+
+	constructor ( agg ? : Agg )
+	{
+		this [ lf_agg ] = agg ;
+	}
+
 
 	/** 通知を受け取る ref を refs に追加。 */
 

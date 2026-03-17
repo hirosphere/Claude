@@ -88,7 +88,6 @@ table.cases td
 	border-bottom: 1px dotted hsl( 50, 5%, 78% );
 }
 .icon  { width: 2em; text-align: center; }
-.label { }
 
 tr.pass .icon { color: hsl( 140, 55%, 36% ); }
 tr.fail .icon { color: hsl(   0, 65%, 48% ); }
@@ -127,12 +126,11 @@ const summary = document.getElementById ( "summary" ) ;
 
 let totalPass = 0 ;
 let totalFail = 0 ;
-let currentSection = null ;
-let currentTable   = null ;
+let currentTbody = null ;
 
 function section ( title )
 {
-	const wrap  = document.createElement ( "div" ) ;
+	const wrap = document.createElement ( "div" ) ;
 	wrap.className = "section" ;
 
 	const hd = document.createElement ( "div" ) ;
@@ -147,8 +145,7 @@ function section ( title )
 	wrap.appendChild ( tbl ) ;
 
 	output.appendChild ( wrap ) ;
-	currentSection = tbody ;
-	currentTable   = tbl ;
+	currentTbody = tbody ;
 }
 
 function assert ( label , cond )
@@ -156,22 +153,19 @@ function assert ( label , cond )
 	const tr = document.createElement ( "tr" ) ;
 	tr.className = cond ? "pass" : "fail" ;
 
-	const tdIcon  = document.createElement ( "td" ) ;
+	const tdIcon = document.createElement ( "td" ) ;
 	tdIcon.className = "icon" ;
 	tdIcon.textContent = cond ? "✅" : "❌" ;
 
 	const tdLabel = document.createElement ( "td" ) ;
-	tdLabel.className = "label" ;
 	tdLabel.textContent = label ;
 
 	tr.appendChild ( tdIcon ) ;
 	tr.appendChild ( tdLabel ) ;
-	currentSection.appendChild ( tr ) ;
+	currentTbody.appendChild ( tr ) ;
 
 	if ( cond ) totalPass ++ ; else totalFail ++ ;
 }
-
-// ─── テスト ───────────────────────────────────────────────────────────────────
 
 function makeRef ()
 {
@@ -191,110 +185,146 @@ function makeAgg ()
 	} ;
 }
 
-// 1. 初期値
-section ( "1. Live.Entity 初期値" ) ;
+// ─── 1. Leaf 初期値 ───────────────────────────────────────────────────────────
 
-const e1 = new Live.Entity ( 42 ) ;
-assert ( "lv_get() で初期値を取得できる"       , e1 [ lv_get ] () === 42 ) ;
-assert ( "Live.get() でも初期値を取得できる"   , Live.get ( e1 )  === 42 ) ;
-const e2 = new Live.Entity ( "hello" ) ;
-assert ( "文字列型の初期値を取得できる"        , Live.get ( e2 ) === "hello" ) ;
-const e3 = new Live.Entity ( null ) ;
-assert ( "null を初期値にできる"               , Live.get ( e3 ) === null ) ;
+section ( "1. Live.Leaf 初期値" ) ;
 
-// 2. lf_sub 即時通知
-section ( "2. lf_sub : 登録直後の即時通知" ) ;
+const lf1 = new Live.Leaf ( 42 ) ;
+assert ( "lv_get() で初期値を取得できる"       , lf1 [ lv_get ] () === 42 ) ;
+assert ( "Live.get() でも初期値を取得できる"   , Live.get ( lf1 )  === 42 ) ;
 
-const e4   = new Live.Entity ( 10 ) ;
+const lf2 = new Live.Leaf ( "hello" ) ;
+assert ( "文字列型の初期値を取得できる"        , Live.get ( lf2 ) === "hello" ) ;
+
+const lf3 = new Live.Leaf ( null ) ;
+assert ( "null を初期値にできる"               , Live.get ( lf3 ) === null ) ;
+
+// ─── 2. Live.create ───────────────────────────────────────────────────────────
+
+section ( "2. Live.create() ファクトリ" ) ;
+
+const lc1 = Live.create ( 10 ) ;
+assert ( "Live.create() で Live インスタンスを生成できる"   , lc1 instanceof Live ) ;
+assert ( "Live.create() の初期値が正しい"                  , Live.get ( lc1 ) === 10 ) ;
+
+// ─── 3. lf_sub : 登録直後の即時通知 ──────────────────────────────────────────
+
+section ( "3. lf_sub : 登録直後の即時通知" ) ;
+
+const lf4  = new Live.Leaf ( 10 ) ;
 const ref1 = makeRef () ;
-e4 [ lf_sub ] ( ref1 ) ;
+lf4 [ lf_sub ] ( ref1 ) ;
+
 assert ( "sub 直後に vchan が 1 回呼ばれる"         , ref1.values.length === 1 ) ;
 assert ( "sub 直後の vchan 値が現在値と一致する"    , ref1.values [ 0 ] === 10 ) ;
 assert ( "sub 直後は unsub が呼ばれていない"        , ! ref1.unsubCalled ) ;
 
-// 3. lv_set 値変更
-section ( "3. lv_set : 値変更と Ref への通知" ) ;
+// ─── 4. lv_set : 値変更と通知 ────────────────────────────────────────────────
 
-e4 [ lv_set ] ( 20 ) ;
+section ( "4. lv_set : 値変更と Ref への通知" ) ;
+
+lf4 [ lv_set ] ( 20 ) ;
 assert ( "set 後に vchan が追加で呼ばれる"          , ref1.values.length === 2 ) ;
 assert ( "set 後の vchan 値が新しい値と一致する"    , ref1.values [ 1 ] === 20 ) ;
-assert ( "lv_get() が新しい値を返す"                , e4 [ lv_get ] () === 20 ) ;
-assert ( "Live.get() も新しい値を返す"              , Live.get ( e4 )  === 20 ) ;
+assert ( "lv_get() が新しい値を返す"                , lf4 [ lv_get ] () === 20 ) ;
+assert ( "Live.get() も新しい値を返す"              , Live.get ( lf4 )  === 20 ) ;
 
-// 4. 同値再セット
-section ( "4. 同値再セットは通知しない（Entity の最適化）" ) ;
+// ─── 5. 同値再セット ──────────────────────────────────────────────────────────
+
+section ( "5. 同値再セットは通知しない（Leaf の最適化）" ) ;
 
 const before = ref1.values.length ;
-e4 [ lv_set ] ( 20 ) ;
+lf4 [ lv_set ] ( 20 ) ;
 assert ( "同値の set では vchan が増えない"         , ref1.values.length === before ) ;
 
-// 5. Live.set ヘルパー
-section ( "5. Live.set ヘルパー" ) ;
+// ─── 6. Live.set ヘルパー ────────────────────────────────────────────────────
 
-Live.set ( e4 , 99 ) ;
-assert ( "Live.set() で値が変更される"              , Live.get ( e4 ) === 99 ) ;
+section ( "6. Live.set ヘルパー" ) ;
+
+Live.set ( lf4 , 99 ) ;
+assert ( "Live.set() で値が変更される"              , Live.get ( lf4 ) === 99 ) ;
 assert ( "Live.set() 後に vchan が呼ばれる"         , ref1.values [ ref1.values.length - 1 ] === 99 ) ;
 
-// 6. 複数 Ref
-section ( "6. 複数 Ref への同時通知" ) ;
+// ─── 7. 複数 Ref ──────────────────────────────────────────────────────────────
 
-const e5   = new Live.Entity ( "a" ) ;
+section ( "7. 複数 Ref への同時通知" ) ;
+
+const lf5  = new Live.Leaf ( "a" ) ;
 const refA = makeRef () ;
 const refB = makeRef () ;
-e5 [ lf_sub ] ( refA ) ;
-e5 [ lf_sub ] ( refB ) ;
-e5 [ lv_set ] ( "b" ) ;
+lf5 [ lf_sub ] ( refA ) ;
+lf5 [ lf_sub ] ( refB ) ;
+lf5 [ lv_set ] ( "b" ) ;
 assert ( "refA に値変更が通知される"                , refA.values.includes ( "b" ) ) ;
 assert ( "refB に値変更が通知される"                , refB.values.includes ( "b" ) ) ;
 
-// 7. lf_unsub
-section ( "7. lf_unsub : Ref の解除" ) ;
+// ─── 8. lf_unsub ─────────────────────────────────────────────────────────────
 
-e5 [ lf_unsub ] ( refA ) ;
+section ( "8. lf_unsub : Ref の解除" ) ;
+
+lf5 [ lf_unsub ] ( refA ) ;
 assert ( "unsub で ref.unsub() が呼ばれる"          , refA.unsubCalled ) ;
+
 const lenBefore = refA.values.length ;
-e5 [ lv_set ] ( "c" ) ;
+lf5 [ lv_set ] ( "c" ) ;
 assert ( "unsub 後は解除された ref に通知されない"  , refA.values.length === lenBefore ) ;
 assert ( "unsub されていない refB には通知が届く"   , refB.values.includes ( "c" ) ) ;
 
-// 8. lf_term
-section ( "8. lf_term : 全 Ref への終了通知" ) ;
+// ─── 9. lf_term ──────────────────────────────────────────────────────────────
 
-const e6   = new Live.Entity ( 0 ) ;
+section ( "9. lf_term : 全 Ref への終了通知" ) ;
+
+const lf6  = new Live.Leaf ( 0 ) ;
 const refC = makeRef () ;
 const refD = makeRef () ;
-e6 [ lf_sub ] ( refC ) ;
-e6 [ lf_sub ] ( refD ) ;
-e6 [ lf_term ] () ;
+lf6 [ lf_sub ] ( refC ) ;
+lf6 [ lf_sub ] ( refD ) ;
+lf6 [ lf_term ] () ;
 assert ( "term で refC.unsub() が呼ばれる"          , refC.unsubCalled ) ;
 assert ( "term で refD.unsub() が呼ばれる"          , refD.unsubCalled ) ;
+
 let threwAfterTerm = false ;
-try { e6 [ lv_set ] ( 999 ) ; } catch { threwAfterTerm = true ; }
+try { lf6 [ lv_set ] ( 999 ) ; } catch { threwAfterTerm = true ; }
 assert ( "term 後に lv_set しても例外が出ない"      , ! threwAfterTerm ) ;
 
-// 9. Agg 連携
-section ( "9. Agg 連携（agg_echan の呼び出し）" ) ;
+// ─── 10. Agg 連携 — コンストラクタ渡し ───────────────────────────────────────
 
-const e7  = new Live.Entity ( 1 ) ;
-const agg = makeAgg () ;
-e7 [ lf_agg ] = agg ;
-e7 [ lv_set ] ( 2 , agg ) ;
-assert ( "set 時に agg_echan が 1 回呼ばれる"       , agg.count === 1 ) ;
-e7 [ lv_set ] ( 3 , agg ) ;
-assert ( "set のたびに agg_echan が呼ばれる"        , agg.count === 2 ) ;
+section ( "10. Agg 連携 — Leaf コンストラクタで agg を渡す" ) ;
+
+const agg1 = makeAgg () ;
+const lf7  = new Live.Leaf ( 1 , agg1 ) ;
+
+lf7 [ lv_set ] ( 2 , agg1 ) ;
+assert ( "コンストラクタ渡し agg で agg_echan が呼ばれる"     , agg1.count === 1 ) ;
+
+lf7 [ lv_set ] ( 3 , agg1 ) ;
+assert ( "set のたびに agg_echan が呼ばれる"                  , agg1.count === 2 ) ;
+
 const otherAgg = makeAgg () ;
-e7 [ lv_set ] ( 4 , otherAgg ) ;
-assert ( "異なる agg では agg_echan が呼ばれない"   , agg.count === 2 ) ;
+lf7 [ lv_set ] ( 4 , otherAgg ) ;
+assert ( "異なる agg では agg_echan が呼ばれない"             , agg1.count === 2 ) ;
 
-// 10. unsub 未定義
-section ( "10. unsub 未定義の Ref" ) ;
+// ─── 11. Agg 連携 — lf_agg 直接セット ────────────────────────────────────────
 
-const e8          = new Live.Entity ( false ) ;
-const refNoUnsub  = { vchan () {} } ;
-e8 [ lf_sub ] ( refNoUnsub ) ;
+section ( "11. Agg 連携 — lf_agg を直接セット" ) ;
+
+const agg2 = makeAgg () ;
+const lf8  = new Live.Leaf ( 0 ) ;
+lf8 [ lf_agg ] = agg2 ;
+lf8 [ lv_set ] ( 5 , agg2 ) ;
+assert ( "lf_agg 直接セットで agg_echan が呼ばれる"           , agg2.count === 1 ) ;
+
+// ─── 12. unsub 未定義 Ref ─────────────────────────────────────────────────────
+
+section ( "12. unsub 未定義の Ref" ) ;
+
+const lf9        = new Live.Leaf ( false ) ;
+const refNoUnsub = { vchan () {} } ;
+lf9 [ lf_sub ] ( refNoUnsub ) ;
+
 let threwNoUnsub = false ;
-try { e8 [ lf_term ] () ; } catch { threwNoUnsub = true ; }
-assert ( "unsub 未定義の Ref を term しても例外が出ない" , ! threwNoUnsub ) ;
+try { lf9 [ lf_term ] () ; } catch { threwNoUnsub = true ; }
+assert ( "unsub 未定義の Ref を term しても例外が出ない"       , ! threwNoUnsub ) ;
 
 // ─── サマリー更新 ─────────────────────────────────────────────────────────────
 

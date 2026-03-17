@@ -31,142 +31,21 @@ button { padding : 0.8ex 0.8em ; }
 .GM { gap : 1em ; }
 .GX { gap : 1ex ; }
 
-#LIFE_COUNT { font-size : 48px ; }
+article
+{
+	border : 2px  solid  hsl( 0  0%  50% ) ;
+	border-radius : 1ex ;
+
+	display : flex ;
+	flex-direction : column ;
+	padding : 1ex ;
+	gap : 1ex ;
+}
 
 </style>
 
 </head>
 <body class="FC PM AC GX">
-	<h1>Prime Quest</h1>
-
-	<article class="FC PX AC GX">
-		<h2>Life</h2>
-		<section class="FR PX JC AC GX">
-			<button id="LIFE_ADD">+Life</button>
-			<button id="LIFE_CLEAR">Clear</button>
-		</section>
-		<section class="FR PX JC AC GX">
-			<span id="LIFE_COUNT"></span>
-		</section>
-		<section id="LIFE_INSTANCES" class="FC PX GX FW"></section>
-
-<script type="module">
-
-import { sub , unsub , terminate } from "../js-out/Meh/Model/symbols.js" ;
-import { Life , monitor } from "../js-out/Meh/Model/Life.js" ;
-
-// ***********
-
-const eid = ( id ) => document.getElementById ( id ) ;
-
-const ecr = ( com , type , text , cn ) =>
-{
-	const e = document.createElement ( type ) ;
-	if ( cn ) e.className = cn ;
-	if ( text !== undefined ) e.textContent = text ;
-	com.appendChild ( e ) ;
-	return e ;
-}
-
-const times = ( c , op ) =>
-{
-	for ( let i = 0 ; i < c ; i ++ ) op ( i );
-}
-
-
-// ***********
-
-const lifes = new Set ;
-
-let refbalance = 0 ;
-
-class MyLife extends Life
-{
-	constructor ()
-	{
-		super () ;
-
-		const e = this.e = ecr ( eid ( "LIFE_INSTANCES" ) , "section", null , "FR GX" ) ;
-
-		ecr ( e , "button" , "X" ) .onclick = () => this [ terminate ] () ;
-
-		ecr ( e , "span" , Life.ru ( this ) ) ;
-
-		let nextref = 0 ;
-
-		const addref = ecr ( e , "button" , "+Ref" ) ;
-		addref.onclick = () => { this [ sub ] ( new MyRef ( this , refs , nextref ++ ) ) ; }
-		
-		const refs = ecr ( e , "section" , null , "FR FW GX" ) ;
-	}
-
-	[ terminate ] ()
-	{
-		this.e.remove () ;
-		lifes.delete ( this ) ;
-		update () ;
-		super [ terminate ] () ;
-	}
-}
-
-class MyRef
-{
-	constructor ( life , refs , num )
-	{
-		const e = this.e = ecr ( refs , "button" , "Ref " + num ) ;
-		e.onclick = () =>
-		{
-			life [ unsub ] ( this ) ;
-		}
-
-		this.memory = new Array ( 10 ** 7 ).fill ( "." ) ;
-		
-		refbalance ++ ;
-		update () ;
-	}
-
-	lterm ()
-	{
-		this.e.remove () ;
-		delete  this.memory ;
-		refbalance -- ;
-		update () ;
-	}
-}
-
-
-// ***********
-
-eid ( "LIFE_ADD" ).onclick = () =>
-{
-	lifes.add ( new MyLife ) ;
-	update () ;
-}
-
-eid ( "LIFE_CLEAR" ) .onclick = () =>
-{
-	lifes.forEach ( i => i [ terminate ] () ) ;
-	lifes.length = 0 ;
-	update () ;
-}
-
-const update = () =>
-{
-	eid ( "LIFE_COUNT" ).innerHTML =
-	[
-		"" + monitor.next_ru ,
-		"" + monitor.balance ,
-		"" + [ ... lifes ].length ,
-		"" + refbalance
-	] .join ( " , " ) ;
-}
-
-update () ;
-
-</script>
-
-	</article>
-
-
+<script type="module" src="../js-out/q1/prime-quest.js"></script>
 </body>
 </html>
